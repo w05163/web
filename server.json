@@ -1,0 +1,8 @@
+{
+	ip:"112.74.114.25",
+	ftp:"god",
+	ftppsw:"ftp20151116",
+	root:"ALYwx1ghr",
+	"启动mc服务器":"java -Xmx1024M -Xms1024M -jar minecraft_server.jar nogui" 
+	"调试时启动":"supervisor server.js"
+}

@@ -1,0 +1,385 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta name="keywords" content="p2p,视频">
+    <meta name="description" content="双人视频页">
+    <meta name="renderer" content="webkit"><!--双内核浏览器使用webkit内核渲染-->
+    <meta name="robots" content="index,follow"><!--允许抓取本页，允许跟踪链接-->
+    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge,chrome=1"><!--让ie以最高级别渲染，或者提示chrome插件-->
+
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="viewport" content="initial-scale=1.0, user-scalable=no">
+    <meta http-equiv="Window-target" content="_top"><!--用来防止别人在框架里调用自己的页面。-->
+    <meta name="theme-color" content="#f44336"><!--设置chrome导航栏颜色-->
+
+    
+    <title>你个蠢视频</title>
+    <link rel="shortcut icon" href="favicon.ico">
+    <link rel="stylesheet" type="text/css" media="screen" href="css/i.css">
+    <script src="js/i.js"></script>
+
+    <script src="js/SkyRTC-client.js" defer="defer"></script>
+</head>
+<style type="text/css">
+    #input{
+        text-align: center;
+        margin-top: 20%;
+    }
+    .card{width:40%;}
+    #key{
+        text-align: center;
+        width: 100%;
+    }
+    #ok{
+        display: block;
+        margin: 1em auto;
+    }
+    button{width: 6em;}
+    body{
+        margin:0;
+    }
+    #id_myself{
+        position: fixed;
+        right: 0;
+        top: 0;
+        z-index: 100;
+    }
+    #id_myself video{
+        width: 100px;
+        height: 100px;
+    }
+
+    .video_div{
+        position: fixed;
+        left: 0;
+        top: 0;
+    }
+    .video_div video{
+        width: 100vw;
+        height: 100vh;
+    }
+    .xgj{
+        position: fixed;
+        left: 10px;
+        z-index: 99;
+        text-align: center;
+    }
+    #xgj{
+        width: 100px;
+    }
+    .xgj:hover>#xgj,.xgj:active>#xgj{
+        animation: around 1.5s;
+        -moz-animation: around 1.5s;
+        -webkit-animation: around 1.5s;
+        -o-animation: around 1.5s;
+        animation-iteration-count:infinite;
+        -webkit-animation-iteration-count:infinite;
+        animation-timing-function:linear;
+        -webkit-animation-timing-function:linear;
+    }
+    .xgj:hover>#xgj_alert,.xgj:active>#xgj_alert{
+        opacity:1;
+    }
+    #xgj_alert{
+        opacity:0;
+        transition: opacity 0.5s;
+        -moz-transition: opacity 0.5s;  /* Firefox 4 */
+        -webkit-transition: opacity 0.5s;   /* Safari 和 Chrome */
+        -o-transition: opacity 0.5s;    /* Opera */
+    }
+
+    #msg{
+        width: 500px;
+        padding-left: 1em;
+        max-width: 60vw;
+    }
+    .tm{
+        animation: ltor 8s;
+        -moz-animation: ltor 8s;
+        -webkit-animation: ltor 8s;
+        -o-animation: ltor 8s;
+        display: inline-block;
+        width: 100%;
+        position: fixed;
+        animation-timing-function:linear;
+        -webkit-animation-timing-function:linear;
+        font-size: 2em;
+    }
+    @media screen and (max-width: 768px) {
+        body{
+            font-size: 16px;
+        }
+        #key{
+            padding: .5em 0 !important;
+            font-size: 1.1em;
+        animation-timing-functio:linear;
+
+        }
+        }
+        h1{
+            font-size: 1.5em;
+        }
+        .card{width:60%;}
+    }
+</style>
+<body class="dark-theme">
+    <nav class="bg-red-500">
+        <h1 style="margin:0">你个蠢视频</h1>
+    </nav>
+    
+    <div class="xgj">
+        <div id="xgj_alert">
+            你好，我是西瓜精！
+        </div>
+        <img id="xgj" src="img/xgj.png">
+    </div>
+    
+    <div id="media-list"></div>
+    <div id="input">
+        <div class="text-input-container card">
+            <input type="text" class="text-input" id="key" placeholder="请输入一句话">
+        </div>
+        <button class="button raised bg-blue-500 color-white" id="ok">确定</button>
+    </div>
+
+    <div style="position: fixed;bottom: 0;width: 100%;text-align: center;display: none;" id="tmbox">
+        <div class="text-input-container card" style="max-width: 100%;width: auto;">
+            <input type="text" class="text-input" id="msg" placeholder="发送弹幕">
+            <button class="button raised bg-blue-500 color-white" id="send" style="margin: 0;height: 48px;">发送</button>
+        </div>
+    </div>
+</body>
+<script>
+// 声明变量
+var rtc;
+var d={
+    ok:i("#ok"),
+    key:i("#key"),
+    i:i("#input"),
+    mediaList:i('#media-list'),//视频列表
+    msg:i("#msg"),
+    send:i('#send'),
+    body:i('body'),
+    tmbox:i("#tmbox")
+}
+
+
+window.onload=function(){
+    rtcInit();
+    addEvent();
+    var k=i.l("token_key");
+    if(k)
+        d.key.value=k;
+
+}
+
+function addEvent(){
+    window.addEventListener("beforeunload",unloadTip);
+    d.ok.on("click",makeWss);
+    d.key.on("keyup",function(){
+        if(event.keyCode==13)
+            makeWss();
+    });
+    d.send.on('click',sendMsg);
+    d.msg.on('keyup',function(e){
+        if(e.keyCode==13)
+            sendMsg();
+    })
+}
+
+
+function makeWss(){
+    d.i.style.display="none";
+    var k=d.key.value;
+    if(!k){
+        alert("请输入一句话");
+        return;
+    }
+    i.l("token_key",k);
+
+    //连接WebSocket服务器
+    rtc.connect("wss:" + location.host,k);
+}
+
+
+// 显示流
+function displayStream(id, stream) {
+    var video_view = document.createElement("div");
+    video_view.id='id_'+id;
+    var video=document.createElement("video");
+
+    if(id=="myself"){
+        video_view.on('mousewheel',scale);
+        video_view.on('mousedown',dragS);
+        video_view.on('mouseup',dragE);
+        video_view.on('mousemove',dragM);
+        video_view.on('touchstart',dragS);
+        video_view.on('touchend',dragE);
+        video_view.on('touchmove',dragM);
+        video.volume=0;
+        var opt=i.ls('my_video_opt');
+        if(opt){
+            video.style.height=video.style.width=opt.w;
+            video_view.style.top=opt.top;
+            video_view.style.left=opt.left;
+            video_view.style.right=opt.right;
+        }
+    }else
+        video_view.className="video_div";
+
+    
+    video_view.appendChild(video);
+    d.mediaList.appendChild(video_view);
+
+    video.src = URL.createObjectURL(stream);
+    video.play();
+
+}
+
+
+function rtcInit(){
+    rtc = SkyRTC();
+    //成功创建WebSocket连接
+    rtc.on("connected", function(socket) {//与服务器建立起了socket连接后触发
+        //创建本地视频流
+        rtc.createStream({
+          "video": true,
+          "audio": true
+        });
+    });
+    //创建本地视频流成功
+    rtc.on("stream_created", function(stream) {
+        displayStream('myself',stream);
+        d.tmbox.style.display='block';
+    });
+    //创建本地视频流失败
+    rtc.on("stream_create_error", function() {
+        d.i.style.display="none";
+        alert("create stream failed!");
+    });
+    //接收到其他用户的视频流
+    rtc.on('pc_add_stream', function(stream, socketId) {
+        displayStream(socketId,stream);
+    });
+    //删除其他用户
+    rtc.on('remove_peer', function(socketId) {
+        var video = document.getElementById('id_' + socketId);
+        if(video){
+          video.parentNode.removeChild(video);
+        }
+    });
+
+    rtc.on('data_channel_message',function(a,b,c){
+        d.body.appendChild(new tm(c));
+    });
+}
+
+
+function unloadTip(){
+    for(t in ul){
+        event.returnValue="当前正在视频中，确认离开吗？";
+        return;
+    }
+}
+
+//处理新用户加入视频
+function userIn(token){
+    if (localStream) {
+        session.sendTo({to: token, stream: localStream, data: true});
+    }
+    console.log('someone in');  
+}
+//用户退出
+function userOut(token){
+    var rec=session.getRemote();
+    console.log('someone out');
+    console.log(rec[token]);//对应的远程通道
+
+    delete rec[token];//删除接收通道
+    delete ul[token];
+}
+
+
+
+
+//滚轮放大缩小自己视频
+function scale(){
+    var video=this.querySelector("video");
+    if(event.wheelDelta>0){
+        //放大
+        video.style.height=video.style.width=video.offsetWidth+10+'px';
+    }else if(video.offsetWidth>100){
+        //缩小
+        video.style.height=video.style.width=video.offsetWidth-10+'px';
+    }
+    i.ls('my_video_opt',{'w':video.style.width});
+}
+
+//移动自己的视频
+function dragS(){
+    this._canMove=true;
+    if(event.type=='touchstart'){
+        var touch=event.changedTouches[0];
+        this._layerX=touch.clientX-this.offsetLeft;
+        this._layerY=touch.clientY-this.offsetTop;
+    }else{
+        this._layerX=event.layerX;
+        this._layerY=event.layerY;
+    }
+}
+function dragM(){
+    if(this._canMove){
+        var x,y;
+        if(event.type=='touchmove'){
+            var touch=event.changedTouches[0];
+            x=touch.clientX;
+            y=touch.clientY;
+        }else{
+            x=event.clientX;
+            y=event.clientY;
+        }
+        var left=x-this._layerX;
+        var top=y-this._layerY;
+        this.style.top=top+'px';
+        this.style.left=left+'px';
+        this.style.rigth='auto';
+    }
+}
+function dragE(){
+    var op={
+        top:this.style.top||'auto',
+        left:this.style.left||'auto',
+        right:this.style.rigth||'0'
+    }
+    i.ls('my_video_opt',op);
+
+    this._canMove=false;
+    delete this._layerY;
+    delete this._layerY;
+}
+
+
+//发送文字信息
+function sendMsg(){
+    var msg=i.trim(d.msg.value);
+    if(msg){
+        d.msg.value='';
+        rtc.broadcast(msg);
+        d.body.appendChild(new tm(msg));
+    }
+}
+
+//弹幕组件
+function tm(str){
+    var sp=document.createElement('span');
+    sp.className='tm';
+    sp.innerHTML=str;
+    sp.on('animationend',function(){
+        sp.parentNode.removeChild(sp);
+    })
+    sp.style.top=Math.random()*100+'vh';
+    return sp;
+}
+</script>
+</html>
